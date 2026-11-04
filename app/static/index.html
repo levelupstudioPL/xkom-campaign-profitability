@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rentowność kampanii per produkt — x-kom</title>
+<style>
+
+:root{
+  color-scheme: light;
+  --surface-0:#f4f3f0; --surface-1:#fcfcfb; --surface-2:#f0efec; --border:#e2e1dc; --grid:#ebeae6;
+  --text-primary:#0b0b0b; --text-secondary:#52514e; --text-muted:#7a7974;
+  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100; --s5:#e87ba4; --s6:#008300; --s7:#6250d6; --s8:#e34948;
+  --good:#0ca30c; --warning:#fab219; --serious:#ec835a; --critical:#d03b3b;
+  --good-text:#006300; --critical-text:#b02a2a; --accent:#2a78d6;
+}
+@media (prefers-color-scheme: dark){
+  :root:where(:not([data-theme="light"])){
+    color-scheme: dark;
+    --surface-0:#121211; --surface-1:#1a1a19; --surface-2:#262624; --border:#33332f; --grid:#2a2a27;
+    --text-primary:#f0efec; --text-secondary:#c3c2b7; --text-muted:#8f8e86;
+    --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#008300; --s7:#9085e9; --s8:#e66767;
+    --good-text:#3fcf3f; --critical-text:#ff7b7b; --accent:#3987e5;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme: dark;
+  --surface-0:#121211; --surface-1:#1a1a19; --surface-2:#262624; --border:#33332f; --grid:#2a2a27;
+  --text-primary:#f0efec; --text-secondary:#c3c2b7; --text-muted:#8f8e86;
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#008300; --s7:#9085e9; --s8:#e66767;
+  --good-text:#3fcf3f; --critical-text:#ff7b7b; --accent:#3987e5;
+}
+*{box-sizing:border-box}
+body{margin:0;font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif;background:var(--surface-0);color:var(--text-primary)}
+header{padding:20px 28px 0;max-width:1320px;margin:0 auto}
+h1{font-size:20px;margin:0 0 4px;font-weight:650;letter-spacing:-.01em}
+.sub{color:var(--text-secondary);font-size:13px}
+.badge{display:inline-block;padding:2px 8px;border-radius:99px;font-size:12px;font-weight:600;background:var(--surface-2);color:var(--text-secondary);border:1px solid var(--border);margin-left:6px;vertical-align:2px}
+.badge.demo{color:var(--s2);border-color:currentColor;background:transparent}
+nav{display:flex;gap:4px;flex-wrap:wrap;margin-top:16px;border-bottom:1px solid var(--border)}
+nav a{padding:9px 14px;color:var(--text-secondary);text-decoration:none;font-weight:550;border-bottom:2px solid transparent;margin-bottom:-1px;border-radius:6px 6px 0 0}
+nav a:hover{color:var(--text-primary);background:var(--surface-2)}
+nav a.on{color:var(--text-primary);border-bottom-color:var(--accent)}
+main{max-width:1320px;margin:0 auto;padding:20px 28px 60px}
+section.view{display:none}
+section.view.on{display:block}
+.card{background:var(--surface-1);border:1px solid var(--border);border-radius:12px;padding:18px 20px;margin-bottom:16px}
+.card h2{font-size:15px;margin:0 0 4px;font-weight:650}
+.card .hint{color:var(--text-secondary);font-size:13px;margin:0 0 14px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-bottom:16px}
+.kpi{background:var(--surface-1);border:1px solid var(--border);border-radius:12px;padding:14px 16px}
+.kpi .l{font-size:12px;color:var(--text-secondary);font-weight:550}
+.kpi .v{font-size:24px;font-weight:650;margin-top:4px;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.kpi .d{font-size:12px;color:var(--text-muted);margin-top:2px}
+.row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+label.ctl{font-size:12px;color:var(--text-secondary);display:flex;flex-direction:column;gap:3px;font-weight:550}
+select,input[type=text],input[type=number],input[type=search]{font:inherit;font-size:13px;padding:6px 9px;border-radius:7px;border:1px solid var(--border);background:var(--surface-1);color:var(--text-primary)}
+input[type=number]{width:84px;text-align:right}
+button{font:inherit;font-size:13px;font-weight:600;padding:7px 12px;border-radius:7px;border:1px solid var(--border);background:var(--surface-1);color:var(--text-primary);cursor:pointer}
+button:hover{background:var(--surface-2)}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.seg{display:inline-flex;border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.seg button{border:0;border-radius:0;font-weight:550;color:var(--text-secondary)}
+.seg button.on{background:var(--surface-2);color:var(--text-primary);font-weight:650}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{padding:7px 8px;border-bottom:1px solid var(--grid);text-align:left;white-space:nowrap}
+th{font-size:12px;color:var(--text-secondary);font-weight:600;position:sticky;top:0;background:var(--surface-1);cursor:pointer;user-select:none}
+th.num,td.num{text-align:right;font-variant-numeric:tabular-nums}
+th .arr{color:var(--text-muted);font-size:10px;margin-left:3px}
+tbody tr:hover td{background:var(--surface-2)}
+tfoot td{font-weight:650;border-top:2px solid var(--border)}
+.tablewrap{overflow:auto;max-height:620px;border:1px solid var(--grid);border-radius:8px}
+.st{display:inline-flex;align-items:center;gap:5px;font-weight:600;font-size:12px}
+.st i{width:9px;height:9px;border-radius:50%;display:inline-block;font-style:normal}
+.neg{color:var(--critical-text)} .pos{color:var(--good-text)}
+.muted{color:var(--text-muted)}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--text-secondary);margin:4px 0 10px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:10px;height:10px;border-radius:3px;display:inline-block}
+svg text{fill:var(--text-secondary);font-size:12px}
+svg .val{fill:var(--text-primary);font-weight:600}
+#tip{position:fixed;pointer-events:none;background:var(--surface-1);color:var(--text-primary);border:1px solid var(--border);box-shadow:0 6px 20px rgba(0,0,0,.14);border-radius:8px;padding:8px 10px;font-size:12px;display:none;z-index:50;max-width:320px}
+#tip b{display:block;margin-bottom:3px}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:16px}
+.drop{border:1.5px dashed var(--border);border-radius:10px;padding:14px;background:var(--surface-0)}
+.drop.over{border-color:var(--accent)}
+.drop h3{margin:0 0 2px;font-size:14px}
+.drop .cols{font-size:12px;color:var(--text-secondary);margin:6px 0 10px}
+.drop code,.meth code{font-size:12px;background:var(--surface-2);padding:1px 5px;border-radius:4px}
+.status{font-size:12px;margin-top:8px}
+.warnlist{margin:0;padding-left:18px;font-size:13px}
+.warnlist li{margin:3px 0}
+.meth p,.meth li{color:var(--text-secondary);max-width:900px}
+.meth h3{font-size:14px;margin:18px 0 6px}
+.formula{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;background:var(--surface-2);padding:8px 10px;border-radius:7px;display:block;margin:6px 0;color:var(--text-primary);white-space:pre-wrap}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--text-primary);color:var(--surface-1);padding:8px 14px;border-radius:8px;font-size:13px;display:none;z-index:60}
+.margins-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:8px 18px}
+.margins-grid label{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:13px;padding:4px 0;border-bottom:1px solid var(--grid)}
+
+a.dl{font-size:13px;font-weight:600;color:var(--accent);text-decoration:none}
+
+input[type=date]{font:inherit;font-size:13px;padding:5px 8px;border-radius:7px;border:1px solid var(--border);background:var(--surface-1);color:var(--text-primary)}
+.loading{opacity:.55;transition:opacity .15s}
+.err{background:var(--surface-1);border:1px solid var(--critical);color:var(--critical-text);padding:12px 14px;border-radius:10px;margin-bottom:14px}
+.pager{display:flex;gap:10px;align-items:center;margin-top:10px;font-size:12px;color:var(--text-secondary)}
+</style>
+</head>
+<body>
+<header>
+  <h1>Rentowność kampanii per produkt <span id="modeBadge" class="badge"></span></h1>
+  <div class="sub" id="subline">Google Ads API + GA4 + marża % per kategoria</div>
+  <nav id="nav">
+    <a href="#podsumowanie">Podsumowanie</a>
+    <a href="#koszt-kategorii">a) Koszt per kategoria</a>
+    <a href="#rentownosc">b) Rentowność kategorii</a>
+    <a href="#produkty">c) Koszt na sztukę produktu</a>
+    <a href="#kampanie">Kampanie</a>
+    <a href="#dane">Synchronizacja i marże</a>
+    <a href="#metodologia">Metodologia</a>
+  </nav>
+</header>
+<main>
+  <div class="toolbar" id="globalBar">
+    <label class="ctl">Od<input type="date" id="dFrom"></label>
+    <label class="ctl">Do<input type="date" id="dTo"></label>
+    <label class="ctl">Szybki wybór
+      <select id="preset"><option value="">—</option><option value="7">ostatnie 7 dni</option><option value="30">ostatnie 30 dni</option><option value="90">ostatnie 90 dni</option><option value="mtd">bieżący miesiąc</option><option value="prev">poprzedni miesiąc</option></select>
+    </label>
+    <label class="ctl">Baza sprzedaży
+      <span class="seg" id="basisSeg">
+        <button data-v="attr" class="on" title="Sprzedaż z sesji z kampanii Google Ads">Atrybuowana</button>
+        <button data-v="all" title="Cała sprzedaż produktu ze wszystkich źródeł">Blended</button>
+      </span>
+    </label>
+    <label class="ctl">Przychód w GA4
+      <select id="vatSel"><option value="">wg konfiguracji</option><option value="gross">brutto (odejmij VAT)</option><option value="net">netto</option></select>
+    </label>
+    <label class="ctl">Typ kampanii<select id="typeFilter"><option value="">Wszystkie</option></select></label>
+  </div>
+  <div id="errBox"></div>
+
+  <section class="view" id="v-podsumowanie">
+    <div class="kpis" id="kpis"></div>
+    <div class="grid2">
+      <div class="card">
+        <h2>Ile marży zjadają kampanie — per kategoria</h2>
+        <p class="hint">Koszt kampanii ÷ marża brutto ze sprzedaży. Powyżej 100% kategoria dopłaca do reklamy.</p>
+        <div id="chEaten"></div>
+      </div>
+      <div class="card">
+        <h2>Do sprawdzenia</h2>
+        <p class="hint">Produkty z największą stratą po koszcie reklamy.</p>
+        <div id="topLoss"></div>
+        <h2 style="margin-top:16px">Jakość danych</h2>
+        <ul class="warnlist" id="dq"></ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="view" id="v-koszt-kategorii">
+    <div class="card">
+      <h2>a) Koszt całkowity kampanii per kategoria</h2>
+      <p class="hint">Koszt bezpośredni z raportu produktowego Shopping/PMax + koszt pozostałych kampanii rozdzielony wg wyświetleń kart produktu (GA4 <code>view_item</code>) z danej kampanii.</p>
+      <div class="legend" id="typeLegend"></div>
+      <div id="chCatCost"></div>
+    </div>
+    <div class="card">
+      <div class="row" style="justify-content:space-between"><h2>Tabela: kategoria × typ kampanii</h2><a class="dl" data-csv="categories" href="#">Pobierz CSV</a></div>
+      <div class="tablewrap" id="tblCatCost" style="margin-top:10px"></div>
+    </div>
+  </section>
+
+  <section class="view" id="v-rentownosc">
+    <div class="card">
+      <h2>b) Rentowność kategorii — ile marży zjada kampania</h2>
+      <p class="hint">Break-even ROAS = 1 ÷ marża %. Faktyczny ROAS poniżej progu oznacza, że kampania kosztuje więcej niż marża z wygenerowanej sprzedaży.</p>
+      <div class="tablewrap" id="tblCat"></div>
+    </div>
+  </section>
+
+  <section class="view" id="v-produkty">
+    <div class="card">
+      <h2>c) Koszt ruchu na sprzedaną sztukę</h2>
+      <p class="hint">Koszt kampanii przypisany do produktu ÷ sprzedane sztuki, obok marży na sztuce (średnia cena netto × marża % kategorii).</p>
+      <div class="toolbar">
+        <input type="search" id="prodSearch" placeholder="Szukaj produktu / ID…" style="min-width:240px">
+        <select id="prodCat"><option value="">Wszystkie kategorie</option></select>
+        <select id="prodStatus"><option value="">Wszystkie statusy</option><option>Strata</option><option>Na granicy</option><option>Rentowny</option><option>Brak sprzedaży</option></select>
+        <a class="dl" data-csv="products" href="#">Pobierz pełny CSV</a>
+        <span class="muted" id="prodCount"></span>
+      </div>
+      <div class="tablewrap" id="tblProd"></div>
+    </div>
+  </section>
+
+  <section class="view" id="v-kampanie">
+    <div class="card">
+      <h2>Kampanie — jak koszt trafia do produktów</h2>
+      <p class="hint">Koszt bezpośredni = raport produktowy Shopping/PMax. Reszta = koszt rozdzielony wg wyświetleń kart produktu z sesji kampanii. Kampanie bez wyświetleń w GA4 są nieprzypisane.</p>
+      <div class="tablewrap" id="tblCamp"></div>
+    </div>
+  </section>
+
+  <section class="view" id="v-dane">
+    <div class="grid2">
+      <div class="card">
+        <h2>Synchronizacja</h2>
+        <p class="hint" id="syncInfo"></p>
+        <div class="row" style="margin-bottom:12px">
+          <button class="primary" id="syncNow">Synchronizuj ostatnie dni</button>
+          <label class="ctl">Od<input type="date" id="sFrom"></label>
+          <label class="ctl">Do<input type="date" id="sTo"></label>
+          <button id="syncRange" style="align-self:flex-end">Synchronizuj zakres</button>
+        </div>
+        <div class="tablewrap" id="tblSync" style="max-height:340px"></div>
+      </div>
+      <div class="card">
+        <h2>Marża % per kategoria</h2>
+        <p class="hint">Marża brutto na sprzedaży (przychód netto − koszt zakupu) ÷ przychód netto. Kategorie z GA4 (<code>CATEGORY_FIELD</code>), zapisywane w bazie aplikacji.</p>
+        <div class="margins-grid" id="marginsGrid"></div>
+        <div class="row" style="margin-top:12px"><button class="primary" id="saveMargins">Zapisz marże</button><span class="muted" id="marginsInfo"></span></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="view" id="v-metodologia">
+    <div class="card meth">
+      <h2>Jak liczymy</h2>
+      <h3>1. Koszt kampanii → produkt</h3>
+      <p><b>Shopping i Performance Max</b>: koszt per produkt wprost z Google Ads API (<code>shopping_performance_view</code>, <code>segments.product_item_id</code>). Różnica między kosztem kampanii a sumą kosztów produktowych (w PMax: Display, YouTube, Discover, Search bez produktu) jest traktowana jak koszt kampanii nieproduktowej.</p>
+      <p><b>Search, Display, Video, Demand Gen</b> oraz reszta PMax — podział proporcjonalny do wyświetleń kart produktu z sesji tej kampanii w GA4:</p>
+      <span class="formula">koszt_alok(produkt, kampania) = koszt_resztowy(kampania) × wyświetlenia_kart(produkt, kampania) ÷ Σ wyświetlenia_kart(kampania)</span>
+      <p>GA4 łączy się z kampanią Google Ads po ID kampanii (auto-tagging), a jeśli ID brak — po nazwie.</p>
+      <h3>2. Sprzedaż i marża</h3>
+      <span class="formula">przychód_netto = przychód_GA4 ÷ (1 + VAT)   (gdy GA4 raportuje brutto)
+marża_PLN = przychód_netto × marża%(kategoria)
+marża_na_szt = (przychód_netto_całkowity ÷ sztuki_całkowite) × marża%</span>
+      <p><b>Atrybuowana</b> = sprzedaż w sesjach z kampanii Google Ads. <b>Blended</b> = cała sprzedaż produktu ze wszystkich źródeł.</p>
+      <h3>3. Metryki</h3>
+      <span class="formula">a) koszt_kategorii = Σ koszt_bezpośredni + Σ koszt_alokowany
+b) % marży zjadany = koszt ÷ marża_PLN     ROAS = przychód_netto ÷ koszt     break-even ROAS = 1 ÷ marża%
+c) koszt_ruchu_na_szt = koszt_produktu ÷ sprzedane_sztuki     wynik_na_szt = marża_na_szt − koszt_na_szt</span>
+      <h3>4. Statusy</h3>
+      <ul><li><b>Strata</b> — koszt na sztukę &gt; marża na sztuce.</li><li><b>Na granicy</b> — koszt zjada 70–100% marży.</li><li><b>Rentowny</b> — poniżej 70%.</li><li><b>Brak sprzedaży</b> — jest koszt, brak sprzedanych sztuk w wybranej bazie.</li></ul>
+      <h3>5. Ograniczenia</h3>
+      <ul>
+        <li>Marża % per kategoria uśrednia SKU — docelowo marża per SKU z D365.</li>
+        <li>Sprzedaż liczona z GA4 (atrybucja GA4), nie z konwersji Google Ads.</li>
+        <li>Alokacja kosztu Search/Display wg wyświetleń kart jest modelem — wiarygodna na poziomie kategorii, orientacyjna na pojedynczym SKU.</li>
+        <li>Dane GA4 dojrzewają do 48 h — ostatnie dni są codziennie nadpisywane.</li>
+      </ul>
+    </div>
+  </section>
+</main>
+<div id="tip"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+const fmtPLN=v=>(v==null||!isFinite(v))?'—':new Intl.NumberFormat('pl-PL',{maximumFractionDigits:0}).format(v)+' zł';
+const fmtPLN2=v=>(v==null||!isFinite(v))?'—':new Intl.NumberFormat('pl-PL',{minimumFractionDigits:2,maximumFractionDigits:2}).format(v)+' zł';
+const fmtNum=v=>(v==null||!isFinite(v))?'—':new Intl.NumberFormat('pl-PL',{maximumFractionDigits:0}).format(v);
+const fmtPct=(v,d=1)=>(v==null||!isFinite(v))?'—':new Intl.NumberFormat('pl-PL',{minimumFractionDigits:d,maximumFractionDigits:d}).format(v*100)+'%';
+const fmtX=v=>(v==null||!isFinite(v))?'—':new Intl.NumberFormat('pl-PL',{minimumFractionDigits:1,maximumFractionDigits:1}).format(v)+'×';
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const $=id=>document.getElementById(id);
+function toast(t){const e=$('toast');e.textContent=t;e.style.display='block';clearTimeout(toast._t);toast._t=setTimeout(()=>e.style.display='none',2500)}
+
+const TYPE_ORDER=['Search','Shopping','Performance Max','Display','Video','Demand Gen','Inne'];
+const TYPE_COLOR={'Search':'var(--s1)','Shopping':'var(--s2)','Performance Max':'var(--s3)','Display':'var(--s4)','Video':'var(--s5)','Demand Gen':'var(--s6)','Inne':'var(--s7)'};
+const STATUS={'Strata':'var(--critical)','Na granicy':'var(--warning)','Rentowny':'var(--good)','Brak sprzedaży':'var(--serious)','—':'var(--border)'};
+const stBadge=s=>`<span class="st"><i style="background:${STATUS[s]||'var(--border)'}"></i>${esc(s)}</span>`;
+
+const S={basis:'attr',vat:'',channel:'',from:'',to:'',sort:{},prodSort:{k:'result',desc:false},R:null,bounds:null};
+
+async function api(path,opts){const r=await fetch(path,opts);if(!r.ok){let m=r.statusText;try{m=(await r.json()).detail||m}catch(e){}throw new Error(m)}return r.json()}
+function qs(extra={}){const p=new URLSearchParams();if(S.from)p.set('date_from',S.from);if(S.to)p.set('date_to',S.to);p.set('basis',S.basis);if(S.vat)p.set('vat',S.vat);if(S.channel)p.set('channel',S.channel);for(const[k,v]of Object.entries(extra))if(v!==''&&v!=null)p.set(k,v);return p.toString()}
+
+let loadSeq=0;
+async function load(){
+  const seq=++loadSeq; document.querySelector('main').classList.add('loading');
+  try{
+    const R=await api('/api/report?'+qs({q:$('prodSearch').value,category:$('prodCat').value,status:$('prodStatus').value,sort:S.prodSort.k,desc:S.prodSort.desc,limit:1000}));
+    if(seq!==loadSeq) return;
+    S.R=R; S.bounds=R.bounds; $('errBox').innerHTML='';
+    if(!S.from){S.from=R.params.date_from;S.to=R.params.date_to;$('dFrom').value=S.from;$('dTo').value=S.to;}
+    $('dFrom').min=$('dTo').min=R.bounds.min||''; $('dFrom').max=$('dTo').max=R.bounds.max||'';
+    render();
+  }catch(e){ $('errBox').innerHTML=`<div class="err">${esc(e.message)}</div>`; if(/Brak danych/.test(e.message)) setTimeout(load,4000); }
+  finally{ if(seq===loadSeq) document.querySelector('main').classList.remove('loading'); }
+}
+
+function sortTable(id,cols,rows,foot,def){
+  const st=S.sort[id]||def||{k:cols[0].k,d:-1};
+  const sorted=[...rows].sort((a,b)=>{let x=a[st.k],y=b[st.k];if(typeof x==='string'||typeof y==='string')return st.d*String(x??'').localeCompare(String(y??''),'pl');x=x??-Infinity;y=y??-Infinity;return st.d*(x-y)});
+  let h='<table><thead><tr>'+cols.map(c=>`<th class="${c.num?'num':''}" data-k="${c.k}" title="${esc(c.t||'')}">${c.l}<span class="arr">${st.k===c.k?(st.d>0?'▲':'▼'):''}</span></th>`).join('')+'</tr></thead><tbody>';
+  for(const r of sorted)h+='<tr>'+cols.map(c=>`<td class="${c.num?'num':''} ${c.cls?c.cls(r):''}">${c.f?c.f(r[c.k],r):esc(r[c.k])}</td>`).join('')+'</tr>';
+  h+='</tbody>';if(foot)h+='<tfoot><tr>'+cols.map(c=>`<td class="${c.num?'num':''}">${foot[c.k]!=null?(c.f?c.f(foot[c.k],foot):esc(foot[c.k])):''}</td>`).join('')+'</tr></tfoot>';
+  $(id).innerHTML=h+'</table>';
+  $(id).querySelectorAll('th').forEach(th=>th.onclick=()=>{const k=th.dataset.k;const cur=S.sort[id]||st;S.sort[id]={k,d:cur.k===k?-cur.d:-1};render()});
+}
+
+const tip=$('tip');
+document.addEventListener('mousemove',e=>{const t=e.target.closest('[data-tip]');if(!t){tip.style.display='none';return}tip.innerHTML=t.dataset.tip;tip.style.display='block';const w=tip.offsetWidth,h=tip.offsetHeight;let x=e.clientX+14,y=e.clientY+14;if(x+w>innerWidth-8)x=e.clientX-w-14;if(y+h>innerHeight-8)y=e.clientY-h-14;tip.style.left=x+'px';tip.style.top=y+'px'});
+
+function barPath(x,y,w,h){if(w<5)return `M${x},${y}h${w}v${h}h-${w}z`;return `M${x},${y} h${w-4} a4,4 0 0 1 4,4 v${h-8} a4,4 0 0 1 -4,4 h-${w-4} z`}
+
+function chartEaten(cats){
+  const el=$('chEaten'); if(!el.clientWidth) return;
+  const data=cats.filter(c=>!c.unassigned&&c.cost>0).sort((a,b)=>(b.eaten??9)-(a.eaten??9)).slice(0,20);
+  const W=Math.max(420,el.clientWidth),lw=170,rw=110,bh=22,gap=10,top=8;
+  const max=Math.max(1.2,...data.map(d=>d.eaten??0))*1.05;const pw=W-lw-rw;const H=top+data.length*(bh+gap)+24;
+  const x=v=>lw+Math.min(v,max)/max*pw;
+  let s=`<svg width="100%" viewBox="0 0 ${W} ${H}" role="img" aria-label="Procent marży zjadany przez kampanie per kategoria">`;
+  for(const g of [0,0.5,1]) s+=`<line x1="${x(g)}" x2="${x(g)}" y1="${top-4}" y2="${H-20}" stroke="${g===1?'var(--text-secondary)':'var(--grid)'}" stroke-width="${g===1?1.5:1}" ${g===1?'stroke-dasharray="4 3"':''}/><text x="${x(g)}" y="${H-5}" text-anchor="middle">${g*100}%${g===1?' — próg':''}</text>`;
+  data.forEach((d,i)=>{const y=top+i*(bh+gap);const v=d.eaten??0;
+    const t=`<b>${esc(d.category)}</b>Koszt: ${fmtPLN(d.cost)}<br>Marża brutto: ${fmtPLN(d.margin)}<br>Zjadane: ${fmtPct(d.eaten)}<br>ROAS ${fmtX(d.roas)} vs break-even ${fmtX(d.breakeven_roas)}`;
+    s+=`<text x="${lw-10}" y="${y+bh/2+4}" text-anchor="end">${esc(String(d.category).slice(0,24))}</text><rect x="0" y="${y-gap/2}" width="${W}" height="${bh+gap}" fill="transparent" data-tip="${esc(t)}"/>`;
+    s+=`<path d="${barPath(lw,y,Math.max(2,x(v)-lw),bh)}" fill="var(--s1)" pointer-events="none"/>`;
+    s+=`<text class="val" x="${x(v)+8}" y="${y+bh/2+4}" pointer-events="none">${d.eaten!=null?fmtPct(d.eaten,0):'brak sprzedaży'}${v>1?' <tspan fill="var(--critical-text)">▼ strata</tspan>':''}</text>`});
+  el.innerHTML=s+'</svg>';
+}
+
+function chartCatCost(cats,types){
+  const el=$('chCatCost'); if(!el.clientWidth) return;
+  const data=cats.filter(c=>c.cost>0).sort((a,b)=>b.cost-a.cost).slice(0,25);
+  const W=Math.max(560,el.clientWidth),lw=170,rw=110,bh=22,gap=10,top=6;const max=Math.max(...data.map(d=>d.cost),1);const pw=W-lw-rw;const H=top+data.length*(bh+gap)+6;
+  let s=`<svg width="100%" viewBox="0 0 ${W} ${H}" role="img" aria-label="Koszt kampanii per kategoria wg typu kampanii">`;
+  data.forEach((d,i)=>{const y=top+i*(bh+gap);let cx=lw;s+=`<text x="${lw-10}" y="${y+bh/2+4}" text-anchor="end">${esc(String(d.category).slice(0,24))}</text>`;
+    const segs=TYPE_ORDER.filter(t=>d['t_'+t]>0);
+    segs.forEach((t,j)=>{const w=d['t_'+t]/max*pw;const last=j===segs.length-1;const ww=Math.max(1,w-(last?0:2));
+      const tt=`<b>${esc(d.category)} — ${t}</b>${fmtPLN(d['t_'+t])} (${fmtPct(d['t_'+t]/d.cost)} kategorii)`;
+      s+=last?`<path d="${barPath(cx,y,ww,bh)}" fill="${TYPE_COLOR[t]}" data-tip="${esc(tt)}"/>`:`<rect x="${cx}" y="${y}" width="${ww}" height="${bh}" fill="${TYPE_COLOR[t]}" data-tip="${esc(tt)}"/>`;cx+=w});
+    s+=`<text class="val" x="${cx+8}" y="${y+bh/2+4}">${fmtPLN(d.cost)}</text>`});
+  el.innerHTML=s+'</svg>';
+  $('typeLegend').innerHTML=types.map(t=>`<span><i style="background:${TYPE_COLOR[t]}"></i>${t}</span>`).join('');
+}
+
+function render(){
+  const R=S.R;if(!R)return;const T=R.totals;const cats=R.categories;
+  $('typeFilter').innerHTML='<option value="">Wszystkie</option>'+R.all_types.map(t=>`<option ${t===S.channel?'selected':''}>${t}</option>`).join('');
+  $('subline').textContent=`Okres ${R.params.date_from} – ${R.params.date_to} · dane dostępne ${R.bounds.min} – ${R.bounds.max} · przychód GA4 ${R.params.revenue_gross?'brutto → netto':'netto'}`;
+  $('kpis').innerHTML=[
+    ['Koszt kampanii',fmtPLN(T.ads_cost),`${fmtPct(T.allocated_share)} przypisane do produktów`],
+    ['Przychód netto ('+(S.basis==='attr'?'atrybuowany':'blended')+')',fmtPLN(T.revenue),`ROAS ${fmtX(T.roas)}`],
+    ['Marża brutto',fmtPLN(T.margin),`średnio ${fmtPct(T.avg_margin_pct)} przychodu`],
+    ['Marża zjadana przez kampanie',fmtPct(T.eaten),`wynik po reklamie: <span class="${T.result<0?'neg':'pos'}">${fmtPLN(T.result)}</span>`],
+    ['Koszt ruchu na sztukę',fmtPLN2(T.cost_unit),`${fmtNum(T.units)} sprzedanych sztuk`],
+    ['Koszt na produktach ze stratą',fmtPLN(T.loss_cost),`${fmtNum(T.loss_count)} produktów (strata lub brak sprzedaży)`]
+  ].map(([l,v,d])=>`<div class="kpi"><div class="l">${l}</div><div class="v">${v}</div><div class="d">${d}</div></div>`).join('');
+  chartEaten(cats);
+  const tl=[...R.products].filter(i=>i.cost>0).sort((a,b)=>a.result-b.result).slice(0,6);
+  $('topLoss').innerHTML='<table><thead><tr><th>Produkt</th><th class="num">Koszt</th><th class="num">Wynik po reklamie</th><th>Status</th></tr></thead><tbody>'+tl.map(i=>`<tr><td title="${esc(i.id)}">${esc(i.name||i.id)}<div class="muted" style="font-size:11px">${esc(i.category)}</div></td><td class="num">${fmtPLN(i.cost)}</td><td class="num ${i.result<0?'neg':'pos'}">${fmtPLN(i.result)}</td><td>${stBadge(i.status)}</td></tr>`).join('')+'</tbody></table>';
+  $('dq').innerHTML=R.data_quality.map(d=>`<li>${d.level==='warn'?'<b>⚠</b> ':''}${esc(d.text)}</li>`).join('')||'<li>Bez uwag.</li>';
+
+  chartCatCost(cats,R.types);
+  const colsA=[{k:'category',l:'Kategoria'},...R.types.map(t=>({k:'t_'+t,l:t,num:1,f:v=>v?fmtPLN(v):'<span class="muted">—</span>'})),{k:'cost',l:'Koszt całkowity',num:1,f:fmtPLN},{k:'share',l:'Udział',num:1,f:v=>fmtPct(v)},{k:'cost_direct',l:'w tym bezpośredni',num:1,f:fmtPLN},{k:'cost_alloc',l:'w tym alokowany',num:1,f:fmtPLN}];
+  const real=cats.filter(c=>!c.unassigned);const sum=k=>cats.reduce((a,c)=>a+(c[k]||0),0);
+  const footA={category:'Razem',cost:T.total_cost,share:1,cost_direct:sum('cost_direct'),cost_alloc:sum('cost_alloc')};R.types.forEach(t=>footA['t_'+t]=sum('t_'+t));
+  sortTable('tblCatCost',colsA,cats.filter(c=>c.cost>0),footA,{k:'cost',d:-1});
+
+  const colsB=[{k:'category',l:'Kategoria'},{k:'cost',l:'Koszt kampanii',num:1,f:fmtPLN},{k:'revenue',l:'Przychód netto',num:1,f:fmtPLN},{k:'margin_pct',l:'Marża %',num:1,f:(v,r)=>fmtPct(v)+(r.has_margin||r.unassigned?'':' <span class="muted" title="domyślna">*</span>')},{k:'margin',l:'Marża brutto',num:1,f:fmtPLN},{k:'eaten',l:'% marży zjadany',num:1,f:v=>v!=null?`<b>${fmtPct(v)}</b>`:'—',cls:r=>r.eaten>1?'neg':''},{k:'roas',l:'ROAS',num:1,f:fmtX},{k:'breakeven_roas',l:'Break-even ROAS',num:1,f:fmtX},{k:'result',l:'Wynik po reklamie',num:1,f:fmtPLN,cls:r=>r.result<0?'neg':'pos'},{k:'units',l:'Sztuki',num:1,f:fmtNum},{k:'cost_unit',l:'Koszt / szt.',num:1,f:fmtPLN2},{k:'status',l:'Status',f:(v,r)=>r.unassigned?'<span class="muted">brak danych GA4</span>':stBadge(v)}];
+  sortTable('tblCat',colsB,cats.filter(c=>c.cost>0||c.revenue>0),{category:'Razem',cost:T.total_cost,revenue:T.revenue,margin_pct:T.avg_margin_pct,margin:T.margin,eaten:T.eaten,roas:T.roas,result:T.result,units:T.units,cost_unit:T.cost_unit,has_margin:true},{k:'eaten',d:-1});
+
+  const pc=$('prodCat');const pcv=pc.value;pc.innerHTML='<option value="">Wszystkie kategorie</option>'+real.map(c=>c.category).sort((a,b)=>a.localeCompare(b,'pl')).map(c=>`<option ${c===pcv?'selected':''}>${esc(c)}</option>`).join('');
+  renderProducts();
+
+  const colsC=[{k:'campaign_name',l:'Kampania'},{k:'type',l:'Typ'},{k:'cost',l:'Koszt',num:1,f:fmtPLN},{k:'direct',l:'Koszt produktowy (Ads)',num:1,f:fmtPLN},{k:'resid',l:'Do alokacji',num:1,f:fmtPLN},{k:'views',l:'Wyśw. kart (GA4)',num:1,f:fmtNum},{k:'unallocated',l:'Status',f:(v,r)=>v?stBadge('Brak sprzedaży').replace('Brak sprzedaży','Nieprzypisana'):(r.resid>0?'alokowana wg wyświetleń':(r.direct>0?'koszt produktowy':'—'))}];
+  sortTable('tblCamp',colsC,R.campaigns,null,{k:'cost',d:-1});
+}
+
+const PROD_COLS=[{k:'name',l:'Produkt',f:(v,r)=>`${esc(v||r.id)}<div class="muted" style="font-size:11px">${esc(r.id)}</div>`},{k:'category',l:'Kategoria'},{k:'cost',l:'Koszt kampanii',num:1,f:fmtPLN},{k:'views_paid',l:'Wyśw. kart (płatne)',num:1,f:fmtNum},{k:'units',l:'Sprzedane szt.',num:1,f:fmtNum},{k:'avg_price',l:'Śr. cena netto',num:1,f:fmtPLN},{k:'margin_unit',l:'Marża / szt.',num:1,f:fmtPLN2},{k:'cost_unit',l:'Koszt ruchu / szt.',num:1,f:fmtPLN2},{k:'result_unit',l:'Wynik / szt.',num:1,f:fmtPLN2,cls:r=>r.result_unit<0?'neg':(r.result_unit>0?'pos':'')},{k:'eaten',l:'% marży zjadany',num:1,f:v=>fmtPct(v)},{k:'result',l:'Wynik po reklamie',num:1,f:fmtPLN,cls:r=>r.result<0?'neg':'pos'},{k:'status',l:'Status',f:v=>stBadge(v)}];
+function renderProducts(){
+  const R=S.R;const st=S.prodSort;
+  let h='<table><thead><tr>'+PROD_COLS.map(c=>`<th class="${c.num?'num':''}" data-k="${c.k}">${c.l}<span class="arr">${st.k===c.k?(st.desc?'▼':'▲'):''}</span></th>`).join('')+'</tr></thead><tbody>';
+  for(const r of R.products)h+='<tr>'+PROD_COLS.map(c=>`<td class="${c.num?'num':''} ${c.cls?c.cls(r):''}">${c.f?c.f(r[c.k],r):esc(r[c.k])}</td>`).join('')+'</tr>';
+  $('tblProd').innerHTML=h+'</tbody></table>';
+  $('tblProd').querySelectorAll('th').forEach(th=>th.onclick=()=>{const k=th.dataset.k;S.prodSort={k,desc:S.prodSort.k===k?!S.prodSort.desc:true};load()});
+  $('prodCount').textContent=R.products_total>R.products.length?`pokazano ${R.products.length} z ${fmtNum(R.products_total)} — zawęź filtr lub pobierz CSV`:`${fmtNum(R.products_total)} produktów`;
+}
+let pt;$('prodSearch').oninput=()=>{clearTimeout(pt);pt=setTimeout(load,300)};$('prodCat').onchange=load;$('prodStatus').onchange=load;
+document.querySelectorAll('a.dl').forEach(a=>a.onclick=e=>{e.preventDefault();window.location.href=`/api/${a.dataset.csv}.csv?`+qs()});
+
+// global controls
+$('dFrom').onchange=e=>{S.from=e.target.value;$('preset').value='';load()};$('dTo').onchange=e=>{S.to=e.target.value;$('preset').value='';load()};
+$('preset').onchange=e=>{const v=e.target.value;if(!v||!S.bounds)return;const max=new Date(S.bounds.max);const iso=d=>d.toISOString().slice(0,10);let f,t=max;
+  if(v==='mtd'){f=new Date(Date.UTC(max.getUTCFullYear(),max.getUTCMonth(),1))}
+  else if(v==='prev'){f=new Date(Date.UTC(max.getUTCFullYear(),max.getUTCMonth()-1,1));t=new Date(Date.UTC(max.getUTCFullYear(),max.getUTCMonth(),0))}
+  else{f=new Date(max);f.setUTCDate(f.getUTCDate()-(+v-1))}
+  S.from=iso(f)<S.bounds.min?S.bounds.min:iso(f);S.to=iso(t);$('dFrom').value=S.from;$('dTo').value=S.to;load()};
+document.querySelectorAll('#basisSeg button').forEach(b=>b.onclick=()=>{S.basis=b.dataset.v;document.querySelectorAll('#basisSeg button').forEach(x=>x.classList.toggle('on',x===b));load()});
+$('vatSel').onchange=e=>{S.vat=e.target.value;load()};$('typeFilter').onchange=e=>{S.channel=e.target.value;load()};
+
+// sync & margins
+async function loadSync(){
+  try{const r=await api('/api/sync/log');const h=await api('/api/health');
+    $('modeBadge').textContent=h.mode==='demo'?'Tryb demo':'Live · GA4 '+(h.ga4_source==='bigquery'?'BigQuery':'Data API');$('modeBadge').className='badge'+(h.mode==='demo'?' demo':'');
+    $('syncInfo').innerHTML=(r.status.active?`<b>Trwa synchronizacja</b> (od ${esc(r.status.since)})…`:'Automatyczna synchronizacja raz dziennie (SYNC_CRON); ostatnie dni są nadpisywane.')+(h.data.max?` Dane: ${h.data.min} – ${h.data.max}.`:'');
+    $('syncNow').disabled=$('syncRange').disabled=r.status.active;
+    $('tblSync').innerHTML='<table><thead><tr><th>Źródło</th><th>Zakres</th><th class="num">Wiersze</th><th>Status</th><th>Zakończono</th></tr></thead><tbody>'+r.log.map(l=>`<tr><td>${esc(l.source)}</td><td>${esc(String(l.date_from).slice(0,10))} – ${esc(String(l.date_to).slice(0,10))}</td><td class="num">${fmtNum(l.rows)}</td><td title="${esc(l.message)}">${l.status==='ok'?'<span class="pos">✓ ok</span>':'<span class="neg">✕ '+esc((l.message||'').slice(0,80))+'</span>'}</td><td>${esc(String(l.finished_at||'').slice(0,16))}</td></tr>`).join('')+'</tbody></table>';
+    if(r.status.active)setTimeout(()=>{loadSync();},3000);
+  }catch(e){$('syncInfo').textContent=e.message}
+}
+let wasActive=false;
+async function startSync(body){try{await api('/api/sync',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});toast('Synchronizacja uruchomiona');wasActive=true;setTimeout(loadSync,800);pollDone()}catch(e){toast(e.message)}}
+async function pollDone(){const h=await api('/api/health');if(h.sync.active){setTimeout(pollDone,3000);return}if(wasActive){wasActive=false;loadSync();load();loadMargins()}}
+$('syncNow').onclick=()=>startSync({});$('syncRange').onclick=()=>{const f=$('sFrom').value,t=$('sTo').value;if(!f||!t){toast('Podaj zakres dat');return}startSync({date_from:f,date_to:t})};
+
+let MG=null;
+async function loadMargins(){try{MG=await api('/api/margins');const cats=[...new Set([...MG.categories,...Object.keys(MG.margins)])].sort((a,b)=>a.localeCompare(b,'pl'));
+  $('marginsGrid').innerHTML=cats.map(c=>`<label>${esc(c)}<input type="number" step="0.5" min="0" max="100" data-cat="${esc(c)}" value="${MG.margins[c]??''}" placeholder="${MG.default_margin_pct}"></label>`).join('')||'<span class="muted">Brak kategorii — uruchom synchronizację.</span>';
+  $('marginsInfo').textContent=`Puste pole = marża domyślna ${MG.default_margin_pct}% (DEFAULT_MARGIN_PCT).`}catch(e){}}
+$('saveMargins').onclick=async()=>{const m={};document.querySelectorAll('#marginsGrid input').forEach(i=>{const v=i.value.trim().replace(',','.');m[i.dataset.cat]=v===''?null:parseFloat(v)});try{await api('/api/margins',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({margins:m})});toast('Marże zapisane');load()}catch(e){toast(e.message)}};
+
+// routing
+const VIEWS=['podsumowanie','koszt-kategorii','rentownosc','produkty','kampanie','dane','metodologia'];
+function route(){const h=location.hash.replace('#','');const v=VIEWS.includes(h)?h:'podsumowanie';VIEWS.forEach(x=>$('v-'+x).classList.toggle('on',x===v));document.querySelectorAll('#nav a').forEach(a=>a.classList.toggle('on',a.getAttribute('href')==='#'+v));$('globalBar').style.display=(v==='metodologia'||v==='dane')?'none':'flex';if(v==='dane'){loadSync();loadMargins()}if(S.R){if(v==='podsumowanie')chartEaten(S.R.categories);if(v==='koszt-kategorii')chartCatCost(S.R.categories,S.R.types)}}
+addEventListener('hashchange',route);let rz;addEventListener('resize',()=>{clearTimeout(rz);rz=setTimeout(()=>{if(S.R){chartEaten(S.R.categories);chartCatCost(S.R.categories,S.R.types)}},150)});
+route();loadSync();load();
+</script>
+</body>
+</html>

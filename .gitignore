@@ -1,0 +1,11 @@
+.env
+secrets/
+data/
+*.duckdb
+*.duckdb.wal
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+.venv/
+config/margins.csv
+config/category_map.csv

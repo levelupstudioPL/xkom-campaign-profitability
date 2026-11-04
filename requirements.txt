@@ -1,0 +1,14 @@
+fastapi>=0.115
+uvicorn[standard]>=0.30
+pydantic>=2.7
+pydantic-settings>=2.3
+duckdb>=1.1
+pandas>=2.2
+numpy>=1.26
+apscheduler>=3.10,<4
+typer>=0.12
+google-ads>=27.0
+google-analytics-data>=0.18
+google-cloud-bigquery>=3.25
+db-dtypes>=1.2
+google-auth-oauthlib>=1.2

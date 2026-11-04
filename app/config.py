@@ -60,6 +60,8 @@ class Settings(BaseSettings):
 
     # --- Synchronizacja ----------------------------------------------------
     sync_enabled: bool = Field(True, alias="SYNC_ENABLED")
+    # Przy pustej bazie uruchom backfill w tle zaraz po starcie (na Cloud Run ustaw false — zasila Cloud Scheduler)
+    sync_on_empty_start: bool = Field(True, alias="SYNC_ON_EMPTY_START")
     sync_cron: str = Field("15 6 * * *", alias="SYNC_CRON")
     sync_timezone: str = Field("Europe/Warsaw", alias="SYNC_TIMEZONE")
     # Ile ostatnich dni nadpisywać przy każdej synchronizacji (opóźnienia GA4 / korekty Ads)
@@ -67,8 +69,21 @@ class Settings(BaseSettings):
     initial_backfill_days: int = Field(90, alias="INITIAL_BACKFILL_DAYS")
 
     # --- Dostęp do dashboardu ----------------------------------------------
+    # Basic auth — gdy dashboard serwowany jest z tego samego serwera co API
     dashboard_user: str = Field("", alias="DASHBOARD_USER")
     dashboard_password: str = Field("", alias="DASHBOARD_PASSWORD")
+    # Token Bearer — dla dashboardu na Netlify (inna domena) i dla Cloud Scheduler
+    api_token: str = Field("", alias="API_TOKEN")
+    # Domeny dashboardu, które mogą wołać API (np. https://xkom-rentownosc.netlify.app), po przecinku
+    cors_origins: str = Field("", alias="CORS_ORIGINS")
+
+    # --- Hosting bez trwałego dysku (Cloud Run) --------------------------
+    # gs://bucket/sciezka/profitability.duckdb — baza odtwarzana przy starcie i zapisywana po zmianach
+    gcs_db_uri: str = Field("", alias="GCS_DB_URI")
+
+    @property
+    def cors_origin_list(self) -> list[str]:
+        return [o.strip().rstrip("/") for o in self.cors_origins.split(",") if o.strip()]
 
     @property
     def customer_id_list(self) -> list[str]:

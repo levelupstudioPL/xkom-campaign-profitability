@@ -98,6 +98,7 @@ svg .val{fill:var(--text-primary);font-weight:600}
 .margins-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:8px 18px}
 .margins-grid label{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:13px;padding:4px 0;border-bottom:1px solid var(--grid)}
 
+.badge:empty{display:none}
 a.dl{font-size:13px;font-weight:600;color:var(--accent);text-decoration:none}
 
 input[type=date]{font:inherit;font-size:13px;padding:5px 8px;border-radius:7px;border:1px solid var(--border);background:var(--surface-1);color:var(--text-primary)}
@@ -255,7 +256,15 @@ c) koszt_ruchu_na_szt = koszt_produktu ÷ sprzedane_sztuki     wynik_na_szt = ma
 </main>
 <div id="tip"></div>
 <div class="toast" id="toast"></div>
-
+<div id="authBox" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:70;align-items:center;justify-content:center">
+  <form id="authForm" class="card" style="width:min(420px,92vw);margin:0">
+    <h2>Dostęp do danych</h2>
+    <p class="hint">Podaj token API (zmienna API_TOKEN backendu). Zostanie zapamiętany w tej przeglądarce.</p>
+    <input type="password" id="authToken" autocomplete="off" style="width:100%;font:inherit;padding:8px 10px;border-radius:7px;border:1px solid var(--border);background:var(--surface-1);color:var(--text-primary)">
+    <div class="row" style="margin-top:12px"><button class="primary" type="submit">Zaloguj</button><span class="neg" id="authErr" style="font-size:12px"></span></div>
+  </form>
+</div>
+<script src="config.js"></script>
 <script>
 const fmtPLN=v=>(v==null||!isFinite(v))?'—':new Intl.NumberFormat('pl-PL',{maximumFractionDigits:0}).format(v)+' zł';
 const fmtPLN2=v=>(v==null||!isFinite(v))?'—':new Intl.NumberFormat('pl-PL',{minimumFractionDigits:2,maximumFractionDigits:2}).format(v)+' zł';
@@ -273,7 +282,20 @@ const stBadge=s=>`<span class="st"><i style="background:${STATUS[s]||'var(--bord
 
 const S={basis:'attr',vat:'',channel:'',from:'',to:'',sort:{},prodSort:{k:'result',desc:false},R:null,bounds:null};
 
-async function api(path,opts){const r=await fetch(path,opts);if(!r.ok){let m=r.statusText;try{m=(await r.json()).detail||m}catch(e){}throw new Error(m)}return r.json()}
+const API_BASE=((window.APP_CONFIG||{}).apiBase||'').replace(/\/$/,'');
+let TOKEN='';try{TOKEN=localStorage.getItem('rk_token')||''}catch(e){}
+let authWaiters=[];
+function askToken(msg){$('authErr').textContent=msg||'';$('authBox').style.display='flex';$('authToken').focus();return new Promise(r=>authWaiters.push(r))}
+$('authForm').onsubmit=e=>{e.preventDefault();TOKEN=$('authToken').value.trim();try{localStorage.setItem('rk_token',TOKEN)}catch(err){}$('authBox').style.display='none';const w=authWaiters;authWaiters=[];w.forEach(f=>f())};
+async function rawFetch(path,opts={}){
+  const headers=Object.assign({},opts.headers||{});if(TOKEN)headers['Authorization']='Bearer '+TOKEN;
+  let r;try{r=await fetch(API_BASE+path,Object.assign({},opts,{headers}))}catch(e){throw new Error('Brak połączenia z API ('+(API_BASE||'ten serwer')+')')}
+  if(r.status===401){await askToken(TOKEN?'Token nieprawidłowy — spróbuj ponownie.':'');return rawFetch(path,opts)}
+  if(!r.ok){let m=r.statusText;try{m=(await r.json()).detail||m}catch(e){}throw new Error(m)}
+  return r;
+}
+async function api(path,opts){return (await rawFetch(path,opts)).json()}
+async function download(path){try{const r=await rawFetch(path);const blob=await r.blob();const cd=r.headers.get('Content-Disposition')||'';const name=(cd.match(/filename="?([^"]+)"?/)||[])[1]||'eksport.csv';const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000)}catch(e){toast(e.message)}}
 function qs(extra={}){const p=new URLSearchParams();if(S.from)p.set('date_from',S.from);if(S.to)p.set('date_to',S.to);p.set('basis',S.basis);if(S.vat)p.set('vat',S.vat);if(S.channel)p.set('channel',S.channel);for(const[k,v]of Object.entries(extra))if(v!==''&&v!=null)p.set(k,v);return p.toString()}
 
 let loadSeq=0;
@@ -379,7 +401,7 @@ function renderProducts(){
   $('prodCount').textContent=R.products_total>R.products.length?`pokazano ${R.products.length} z ${fmtNum(R.products_total)} — zawęź filtr lub pobierz CSV`:`${fmtNum(R.products_total)} produktów`;
 }
 let pt;$('prodSearch').oninput=()=>{clearTimeout(pt);pt=setTimeout(load,300)};$('prodCat').onchange=load;$('prodStatus').onchange=load;
-document.querySelectorAll('a.dl').forEach(a=>a.onclick=e=>{e.preventDefault();window.location.href=`/api/${a.dataset.csv}.csv?`+qs()});
+document.querySelectorAll('a.dl').forEach(a=>a.onclick=e=>{e.preventDefault();download(`/api/${a.dataset.csv}.csv?`+qs())});
 
 // global controls
 $('dFrom').onchange=e=>{S.from=e.target.value;$('preset').value='';load()};$('dTo').onchange=e=>{S.to=e.target.value;$('preset').value='';load()};

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import csv
+import logging
 import threading
 from contextlib import contextmanager
 from datetime import date
@@ -11,6 +12,8 @@ import duckdb
 import pandas as pd
 
 from .config import get_settings
+
+log = logging.getLogger("db")
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS ads_campaign_daily (
@@ -65,7 +68,7 @@ CREATE TABLE IF NOT EXISTS sync_log (
 );
 """
 
-_lock = threading.Lock()
+_lock = threading.RLock()
 
 
 @contextmanager
@@ -81,7 +84,44 @@ def connect():
             con.close()
 
 
+def _gcs_blob(uri: str):
+    from google.cloud import storage
+
+    if not uri.startswith("gs://"):
+        raise ValueError("GCS_DB_URI musi zaczynać się od gs://")
+    bucket, _, name = uri[5:].partition("/")
+    return storage.Client().bucket(bucket).blob(name)
+
+
+def restore_from_gcs() -> bool:
+    """Cloud Run nie ma trwałego dysku: przy starcie pobierz ostatni snapshot bazy z GCS."""
+    s = get_settings()
+    if not s.gcs_db_uri or Path(s.db_path).exists():
+        return False
+    blob = _gcs_blob(s.gcs_db_uri)
+    if not blob.exists():
+        log.info("Brak snapshotu bazy w %s — start od pustej bazy", s.gcs_db_uri)
+        return False
+    Path(s.db_path).parent.mkdir(parents=True, exist_ok=True)
+    blob.download_to_filename(str(s.db_path))
+    log.info("Odtworzono bazę z %s", s.gcs_db_uri)
+    return True
+
+
+def backup_to_gcs() -> bool:
+    """Zapis snapshotu bazy do GCS po synchronizacji / zmianie marż (pod lockiem, po CHECKPOINT)."""
+    s = get_settings()
+    if not s.gcs_db_uri:
+        return False
+    with connect() as con:
+        con.execute("CHECKPOINT")
+        _gcs_blob(s.gcs_db_uri).upload_from_filename(str(s.db_path))
+    log.info("Zapisano snapshot bazy do %s", s.gcs_db_uri)
+    return True
+
+
 def init_db() -> None:
+    restore_from_gcs()
     with connect() as con:
         con.execute(SCHEMA)
         n = con.execute("SELECT count(*) FROM margins").fetchone()[0]

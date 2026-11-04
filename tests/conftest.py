@@ -10,6 +10,7 @@ def _isolated_env(tmp_path, monkeypatch):
     monkeypatch.setenv("MARGINS_SEED_FILE", str(tmp_path / "none.csv"))
     monkeypatch.setenv("CATEGORY_MAP_FILE", str(tmp_path / "none_map.csv"))
     monkeypatch.setenv("SYNC_ENABLED", "false")
+    monkeypatch.setenv("SYNC_ON_EMPTY_START", "false")
     monkeypatch.setenv("DASHBOARD_USER", "")
     from app.config import get_settings
 

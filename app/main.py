@@ -12,6 +12,7 @@ from pathlib import Path
 
 import pandas as pd
 from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, Response
 from pydantic import BaseModel
 
@@ -29,7 +30,7 @@ async def lifespan(app: FastAPI):
     global _scheduler
     s = get_settings()
     db.init_db()
-    if db.data_bounds()["max"] is None:
+    if s.sync_on_empty_start and db.data_bounds()["max"] is None:
         # pierwszy start: backfill w tle (demo: 90 dni danych syntetycznych)
         threading.Thread(target=_safe_sync_recent, daemon=True).start()
     if s.sync_enabled:
@@ -55,21 +56,53 @@ def _safe_sync_recent():
 app = FastAPI(title="Rentowność kampanii per produkt", version="0.1.0", lifespan=lifespan)
 
 
-@app.middleware("http")
-async def basic_auth(request: Request, call_next):
+PUBLIC_PATHS = {"/api/health"}
+
+
+def _check_auth(header: str) -> bool | None:
+    """True = poprawne dane, False = błędne/brak, None = uwierzytelnianie wyłączone."""
     s = get_settings()
-    if s.dashboard_user and request.url.path != "/api/health":
-        header = request.headers.get("authorization", "")
-        ok = False
-        if header.startswith("Basic "):
-            try:
-                user, _, pwd = base64.b64decode(header[6:]).decode().partition(":")
-                ok = secrets.compare_digest(user, s.dashboard_user) and secrets.compare_digest(pwd, s.dashboard_password)
-            except Exception:  # noqa: BLE001
-                ok = False
-        if not ok:
-            return Response(status_code=401, headers={"WWW-Authenticate": 'Basic realm="rentownosc"'})
+    if not (s.api_token or s.dashboard_user):
+        return None
+    if s.api_token and header.startswith("Bearer "):
+        return secrets.compare_digest(header[7:].strip(), s.api_token)
+    if s.dashboard_user and header.startswith("Basic "):
+        try:
+            user, _, pwd = base64.b64decode(header[6:]).decode().partition(":")
+        except Exception:  # noqa: BLE001
+            return False
+        return secrets.compare_digest(user, s.dashboard_user) and secrets.compare_digest(pwd, s.dashboard_password)
+    return False
+
+
+@app.middleware("http")
+async def auth(request: Request, call_next):
+    path = request.url.path
+    if request.method == "OPTIONS" or path in PUBLIC_PATHS:
+        return await call_next(request)
+    s = get_settings()
+    is_api = path.startswith("/api/")
+    # Statyczny dashboard (/, /config.js) chroni tylko basic auth; z tokenem strona sama prosi o token
+    if not is_api and not s.dashboard_user:
+        return await call_next(request)
+    if _check_auth(request.headers.get("authorization", "")) is False:
+        cross_origin = "origin" in request.headers and request.headers["origin"].rstrip("/") != str(request.base_url).rstrip("/")
+        headers = {} if (cross_origin or not s.dashboard_user) else {"WWW-Authenticate": 'Basic realm="rentownosc"'}
+        return JSONResponse({"detail": "Brak autoryzacji — podaj token API"}, status_code=401, headers=headers)
     return await call_next(request)
+
+
+# CORS dodany jako ostatni = najbardziej zewnętrzny (obsługuje preflight przed auth)
+_cors = get_settings().cors_origin_list
+if _cors:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=_cors,
+        allow_methods=["GET", "POST", "PUT", "OPTIONS"],
+        allow_headers=["Authorization", "Content-Type"],
+        expose_headers=["Content-Disposition"],
+        max_age=3600,
+    )
 
 
 def _params(date_from: date | None, date_to: date | None, basis: str, vat: str | None, channel: str) -> model.Params:
@@ -140,6 +173,7 @@ def put_margins(body: MarginsIn):
         if v is not None and not (0 <= v <= 100):
             raise HTTPException(400, f"Marża dla {k} poza zakresem 0–100")
     db.set_margins(body.margins)
+    sync._backup()
     return {"ok": True, "margins": db.get_margins()}
 
 
@@ -149,14 +183,28 @@ class SyncIn(BaseModel):
 
 
 @app.post("/api/sync")
-def trigger_sync(body: SyncIn):
+def trigger_sync(body: SyncIn | None = None, wait: bool = False):
+    """wait=true — synchronicznie (Cloud Scheduler na Cloud Run: CPU tylko w trakcie żądania)."""
+    body = body or SyncIn()
     if sync.status()["active"]:
         raise HTTPException(409, "Synchronizacja już trwa")
     if body.date_from and body.date_to:
-        target = lambda: sync.sync_range(body.date_from, body.date_to)  # noqa: E731
+        def target():
+            return sync.sync_range(body.date_from, body.date_to)
     else:
-        target = _safe_sync_recent
-    threading.Thread(target=target, daemon=True).start()
+        target = sync.sync_recent
+    if wait:
+        result = target()
+        failed = [k for k, v in result.items() if v == -1]
+        return JSONResponse({"result": result, "failed": failed}, status_code=500 if failed else 200)
+
+    def bg():
+        try:
+            target()
+        except Exception:  # noqa: BLE001
+            log.exception("Synchronizacja nie powiodła się")
+
+    threading.Thread(target=bg, daemon=True).start()
     return {"started": True}
 
 
@@ -165,6 +213,12 @@ def sync_log(limit: int = 30):
     df = db.query_df("SELECT * FROM sync_log ORDER BY id DESC LIMIT ?", [limit])
     df = df.astype(object).where(pd.notna(df), None)
     return {"status": sync.status(), "log": [{k: (str(v) if v is not None and not isinstance(v, (int, float, str)) else v) for k, v in r.items()} for r in df.to_dict(orient="records")]}
+
+
+@app.get("/config.js")
+def config_js():
+    # Przy serwowaniu z backendu API jest pod tym samym adresem. Na Netlify plik generuje build (netlify.toml).
+    return Response("window.APP_CONFIG = { apiBase: '' };\n", media_type="application/javascript")
 
 
 @app.get("/")

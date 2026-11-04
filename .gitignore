@@ -9,3 +9,4 @@ __pycache__/
 .venv/
 config/margins.csv
 config/category_map.csv
+app/static/config.js

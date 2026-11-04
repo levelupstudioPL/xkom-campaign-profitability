@@ -30,6 +30,13 @@ def _run(source: str, d_from: date, d_to: date, fn) -> int:
         return -1
 
 
+def _backup() -> None:
+    try:
+        db.backup_to_gcs()
+    except Exception:  # noqa: BLE001
+        log.exception("Nie udało się zapisać snapshotu bazy do GCS")
+
+
 def sync_range(d_from: date, d_to: date, s: Settings | None = None) -> dict:
     s = s or get_settings()
     if _running["active"]:
@@ -45,6 +52,7 @@ def sync_range(d_from: date, d_to: date, s: Settings | None = None) -> dict:
             result["ga4"] = _run("ga4_demo", d_from, d_to, lambda: db.replace_range("ga4_item_daily", ga, d_from, d_to))
             if not db.get_margins():
                 db.set_margins(demo.DEMO_MARGINS)
+            _backup()
             return result
 
         from .connectors import google_ads
@@ -65,6 +73,7 @@ def sync_range(d_from: date, d_to: date, s: Settings | None = None) -> dict:
         else:
             from .connectors import ga4_data_api as ga4
         result["ga4"] = _run(f"ga4_{s.ga4_source}", d_from, d_to, lambda: db.replace_range("ga4_item_daily", ga4.fetch(s, d_from, d_to), d_from, d_to))
+        _backup()
         return result
     finally:
         _running.update(active=False, since=None)

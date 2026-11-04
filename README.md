@@ -12,6 +12,19 @@ Dane są pobierane automatycznie raz dziennie (bez ręcznych eksportów), zapisy
 
 > **Status: MVP.** Moduły konektorów i model są oddzielone od magazynu danych, żeby w kolejnym kroku przenieść tabele do hurtowni ClickHouse (PBI 716688) zamiast utrzymywać osobną bazę.
 
+## Hosting
+
+| Element | Gdzie | Konfiguracja |
+|---|---|---|
+| Dashboard (statyczny HTML) | **Netlify** | `netlify.toml`, zmienna `API_BASE_URL` |
+| API + synchronizacja | **Cloud Run** w projekcie GCP x-kom | `deploy/cloud-run.md` |
+| Baza (DuckDB) | snapshot w **Cloud Storage** | `GCS_DB_URI` |
+| Harmonogram | **Cloud Scheduler** → `POST /api/sync?wait=true` | `deploy/cloud-run.md` |
+
+Dane x-kom (koszty, przychody, marże) zostają w infrastrukturze x-kom. Na Netlify jest tylko kod strony; dane pobiera ona z API po podaniu tokenu (`API_TOKEN`). Instrukcja krok po kroku: **[deploy/cloud-run.md](deploy/cloud-run.md)**.
+
+Alternatywnie całość działa na dowolnym serwerze z Dockerem (`docker compose up`) — wtedy dashboard jest serwowany przez backend pod tym samym adresem.
+
 ---
 
 ## Szybki start (tryb demo, bez dostępów)
@@ -77,8 +90,8 @@ GOOGLE_APPLICATION_CREDENTIALS=/secrets/ga4-service-account.json
 # dla BigQuery:
 # GA4_BQ_PROJECT=xkom-analytics  GA4_BQ_DATASET=analytics_123456789
 
-DASHBOARD_USER=xkom
-DASHBOARD_PASSWORD=...                      # dashboard pokazuje przychody i marże — ustaw hasło
+API_TOKEN=...                               # openssl rand -hex 32 — dashboard pokazuje przychody i marże
+CORS_ORIGINS=https://xkom-rentownosc.netlify.app
 ```
 
 Plik konta serwisowego wrzuć do `./secrets/` (montowany read-only, ignorowany przez git).
@@ -141,7 +154,8 @@ marże ─────────► margins
 | `GET/PUT /api/margins` | marże per kategoria |
 | `POST /api/sync` (`{date_from, date_to}` opcjonalnie) | ręczna synchronizacja w tle |
 | `GET /api/sync/log` | historia synchronizacji |
-| `GET /api/health` | stan, zakres danych (bez hasła — do monitoringu) |
+| `POST /api/sync?wait=true` | synchronicznie — dla Cloud Scheduler |
+| `GET /api/health` | stan, zakres danych (bez tokenu — do monitoringu) |
 
 CLI: `python -m app.cli check | sync [--from --to] | backfill --days N | seed-margins | report --from --to`
 
@@ -162,7 +176,9 @@ app/
   model.py               alokacja kosztu i metryki rentowności
   main.py                FastAPI + harmonogram + basic auth
   cli.py                 polecenia administracyjne
-  static/index.html      dashboard
+  static/index.html      dashboard (serwowany przez backend albo z Netlify)
+deploy/cloud-run.md      wdrożenie: Cloud Run + Cloud Storage + Cloud Scheduler + Netlify
+netlify.toml             build dashboardu na Netlify (generuje config.js z API_BASE_URL)
 tests/                   testy modelu (przykład liczony ręcznie) i API end-to-end
 ```
 

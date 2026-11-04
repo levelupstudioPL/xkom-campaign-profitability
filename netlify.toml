@@ -1,0 +1,19 @@
+# Dashboard (statyczny) na Netlify. Backend API działa osobno (Cloud Run) — patrz deploy/cloud-run.md.
+# W Netlify ustaw zmienną środowiskową API_BASE_URL, np. https://rentownosc-api-xxxxx-ew.a.run.app
+
+[build]
+  publish = "app/static"
+  command = "if [ -z \"$API_BASE_URL\" ]; then echo 'Ustaw API_BASE_URL w Netlify' >&2; exit 1; fi; printf \"window.APP_CONFIG = { apiBase: '%s' };\\n\" \"$API_BASE_URL\" > app/static/config.js"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "no-referrer"
+    X-Robots-Tag = "noindex, nofollow"
+
+[[headers]]
+  for = "/config.js"
+  [headers.values]
+    Cache-Control = "no-cache"

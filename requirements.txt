@@ -12,3 +12,4 @@ google-analytics-data>=0.18
 google-cloud-bigquery>=3.25
 db-dtypes>=1.2
 google-auth-oauthlib>=1.2
+google-cloud-storage>=2.18
